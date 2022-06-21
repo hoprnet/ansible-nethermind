@@ -1,0 +1,10 @@
+#!/bin/bash
+
+docker-compose -f docker-compose_certbot.yml run --rm certbot-update
+
+cd certbot/live/"{{ LETSENCRYPT_DOMAIN_NAME }}"
+cat cert.pem chain.pem privkey.pem > ../../cert.pem
+cd ../../..
+
+docker-compose restart haproxy
+

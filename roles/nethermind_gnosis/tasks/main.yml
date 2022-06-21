@@ -1,0 +1,148 @@
+---
+# tasks file for nethermind_gnosis
+
+- name: 'CONFIG | Ensure nethermind folders are create and have good rights'
+  become: yes
+  file:
+    path: "{{ item.dest }}"
+    state: 'directory'
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+    recurse: "{{ item.recurse }}"
+  loop: "{{ nethermind_paths|flatten(levels=1) }}"
+
+- name: 'SERVICE | CONFIG | Manage nethermind configuration file'
+  become: yes
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ nethermind_config }}"
+
+- name: 'APP | CONFIG | Copy haproxy config file'
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ haproxy_config }}"
+
+- name: Ensure docker-py is installed
+  package:
+    name:
+      - python3-docker
+      - python3-pip
+    state: present
+
+- name: Install docker-compose
+  pip:
+    name: docker-compose
+
+- name: 'APP Deployment | Nethermind | Copy certbot inital docker-compose file'
+  copy:
+    src: "docker-compose_certbot.yml"
+    dest: "{{ item.dst }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0600'
+  with_items: "{{ nethermind_docker_compose_certbot_path }}"
+
+- name: 'APP | CONFIG | Copy certbot crontab script'
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "655"
+  with_items: "{{ crontab_config }}"
+
+- name: "Install certbot crontab"
+  cron:
+   name: "certbot"
+   state: present
+   minute: "0"
+   hour: "0"
+   day: "1"
+   month: "*"
+   weekday: "*"
+   job: "root cd {{ app_parent_path }}/nethermind && ./certbot_update.sh >> logs/cron_`date +%Y%m%d_%H%M%S`.log 2>&1"
+
+- name: 'APP Deployment | Nethermind | Copy docker-compose file'
+  copy:
+    src: "docker-compose.yml"
+    dest: "{{ item.dst }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0600'
+  with_items: "{{ nethermind_docker_compose_path }}"
+
+- name: 'Check if we need to initiate certificate query to letsencrypt'
+  stat:
+    path: "{{ app_parent_path }}/nethermind/certbot/cert.pem"
+  register: stat_result
+
+##- name: 'DOCKER | docker-compose up certbot services'
+##  docker_compose:
+##    project_src: "{{ item.project_src }}"
+##    build: false
+##    pull: false
+##    files: "{{ item.files }}"
+##    state: "{{ item.state | default('present') }}"
+##    services: "{{ item.service }}"
+##  register: output
+##  with_items: "{{ nethermind_docker_compose_certbot_path }}"
+##  when: not stat_result.stat.exists
+
+- name: 'DOCKER | docker-compose up certbot services'
+  docker_compose:
+    project_src: "{{ app_parent_path}}/nethermind"
+    build: false
+    pull: false
+    files: "docker-compose_certbot.yml"
+    state: "present"
+    services: "letsencrypt"
+  register: output
+  when: not stat_result.stat.exists
+
+- name: Pause for 5 minutes to get certificates
+  pause:
+    minutes: 1
+  when: not stat_result.stat.exists
+
+- name: Merge cert files and private key # Need to be fixed, this will result in an haproxy error if we cant get certs for some reason
+  shell: |
+    > {{ item.dest }}
+    [ -f "{{ item.src }}/cert.pem" ] && 
+    cat "{{ item.src }}/cert.pem" "{{ item.src }}/chain.pem" "{{ item.src }}/privkey.pem" >> {{ item.dest }} &&
+    chown "{{ item.owner }}":"{{ item.group }}" "{{ item.dest }}"
+  args:
+    executable: /bin/bash
+  with_items: "{{ letsencrypt_config }}"
+  when: not stat_result.stat.exists
+
+- name: 'DOCKER | docker-compose up services'
+  docker_compose:
+    project_src: "{{ item.project_src }}"
+    build: false
+    pull: false
+    files: "{{ item.files }}"
+    state: "{{ item.state | default('present') }}"
+  register: output
+  with_items: "{{ nethermind_docker_compose_path }}"
+
+
+- name: Allow p2p access to tcp port 30303
+  ufw:
+    rule: allow
+    port: '30303'
+    proto: tcp
+
+- name: Allow p2p access to tcp port 30303
+  ufw:
+    rule: allow
+    port: '30303'
+    proto: udp

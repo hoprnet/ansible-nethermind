@@ -1,0 +1,106 @@
+---
+# vars file for nethermind_gnosis
+#
+app_user: "ubuntu"
+app_group: "ubuntu"
+app_parent_path: '/opt'
+nethermind_paths:
+  - dest: "{{ app_parent_path }}"
+    owner: "{{ app_user }}"
+    group: '{{ app_group }}'
+    mode: '770'
+    recurse: false
+  - dest: "{{ app_parent_path}}/nethermind/"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '755'
+    recurse: false
+  - dest: "{{ app_parent_path}}/nethermind/haproxy"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '755'
+    recurse: false
+  - dest: "{{ app_parent_path}}/nethermind/certbot"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '755'
+    recurse: false
+  - dest: "{{ app_parent_path}}/nethermind/logs"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '755'
+    recurse: false
+  - dest: "{{ app_parent_path}}/nethermind/nethermind_db"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '755'
+    recurse: false
+  - dest: "{{ app_parent_path}}/nethermind/keystore"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '755'
+    recurse: false
+
+nethermind_config:
+  - name: 'nethermind'
+    src: "{{ role_path }}/templates/env.j2"
+    dest: "{{ app_parent_path }}/nethermind/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '750'
+
+haproxy_config:
+  - name: 'haproxy'
+    src: "{{ role_path }}/templates/haproxy.cfg.j2"
+    dest: "{{ app_parent_path }}/nethermind/haproxy/haproxy.cfg"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '755'
+
+PROJECT_SUBNET: "192.168.32.0/24"
+HAPROXY_HOST_ADDRESS: "192.168.32.100"
+HAPROXY_GROUP: "is-admin"
+HAPROXY_USER: "admin"
+HAPROXY_PASSWORD: "password" # of course this value and the above one should be defined in a vault like ansible-vault hashicorp, etc
+LETSENCRYPT_EMAIL: "marikosidiki2006@gmail.com"
+LETSENCRYPT_DOMAIN_NAME: "nodes.smariko.ml"
+LETSENCRYPT_HTTP_PORT: "8080"
+LETSENCRYPT_LOG_LEVEL: "-vvvv"
+LETSENCRYPT_HOST_ADDRESS: "192.168.32.120"
+NETHERMIND_HOST_ADDRESS: "192.168.32.101"
+NETHERMIND_VOLUME_LOGS: "./logs"
+NETHERMIND_CONFIG: "xdai"
+NETHERMIND_JSONRPCCONFIG_ENABLED: "true"
+NETHERMIND_JSONRPCCONFIG_ENABLEDMODULES: "[Web3,Eth,Subscribe,Net,Http,Client,Jsonrpc,Admin]"
+NETHERMIND_SYNCCONFIG_FASTSYNC: "true"
+NETHERMIND_SYNCCONFIG_FASTBLOCKS: "true" 
+NETHERMIND_SYNCCONFIG_DOWNLOADBODIESINFASTSYNC: "true"
+NETHERMIND_SYNCCONFIG_DOWNLOADRECEIPTSINFASTSYNC: "true"
+CERTBOT_HOST_ADDRESS: "192.168.32.121"
+
+nethermind_docker_compose_certbot_path:
+  - dst: "{{ app_parent_path}}/nethermind/docker-compose_certbot.yml"
+    project_src: "{{ app_parent_path}}/nethermind"
+    files: "docker-compose_certbot.yml"
+    service: "letsencrypt"
+
+nethermind_docker_compose_path:
+  - dst: "{{ app_parent_path}}/nethermind/docker-compose.yml"
+    project_src: "{{ app_parent_path}}/nethermind"
+    files: "docker-compose.yml"
+
+letsencrypt_pem:
+  - "{{ app_parent_path}}/nethermind/certbot/live/{{ LETSENCRYPT_DOMAIN_NAME }}/fullchain.pem"
+  - "{{ app_parent_path}}/nethermind/certbot/live/{{ LETSENCRYPT_DOMAIN_NAME }}/privkey.pem"
+
+letsencrypt_config:
+  - dest: "{{ app_parent_path}}/nethermind/certbot/cert.pem"
+    src: "{{ app_parent_path}}/nethermind/certbot/live/{{ LETSENCRYPT_DOMAIN_NAME }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+
+crontab_config:
+  - dest: "{{ app_parent_path}}/nethermind/update_cert.sh"
+    src: "{{ role_path }}/templates/update_cert.sh.j2"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"

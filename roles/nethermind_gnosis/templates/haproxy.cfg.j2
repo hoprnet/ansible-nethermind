@@ -1,0 +1,63 @@
+global
+    log /dev/log local0
+    log localhost local1 notice
+    log stdout format raw daemon debug
+    maxconn 2000
+    daemon
+ 
+defaults
+    log global
+    mode http
+    option httplog
+    option dontlognull
+    retries 10
+    timeout connect 50000
+    timeout client 50000
+    timeout server 50000
+
+resolvers docker_resolver
+  nameserver dns 127.0.0.11:53
+
+userlist basic-auth-list
+  group {{ HAPROXY_GROUP }}
+  user {{ HAPROXY_USER }} password {{ HAPROXY_PASSWORD }}                             groups {{ HAPROXY_GROUP }}
+
+ 
+frontend http
+    bind *:80
+
+    # if this is an ACME request to proof the domain ownder, then redirect to nginx-certbot server
+    #acl is_well_known path_beg -i /.well-known/
+    acl is_well_known path_beg /.well-known/acme-challenge/
+
+    # else redirect the traffic to https
+    redirect scheme https code 301 if !is_well_known !{ ssl_fc }
+    use_backend letsencrypt if is_well_known
+
+
+frontend https
+    bind *:443 ssl crt /usr/local/etc/certs/cert.pem
+    http-response set-header Strict-Transport-Security "max-age=16000000; includeSubDomains; preload;"
+
+    acl is-nodes hdr_dom(host) -i {{ LETSENCRYPT_DOMAIN_NAME }}
+    use_backend nodes if is-nodes
+
+    default_backend nodes
+
+
+backend letsencrypt
+    server certbot-update certbot-update:8081 resolvers docker_resolver check init-addr none check  inter 10s  fall 5  rise 5
+
+ 
+backend nodes
+    acl nodes-auth http_auth_group(basic-auth-list) {{ HAPROXY_GROUP }}
+    http-request auth realm nodes unless nodes-auth
+
+    stats enable
+    stats auth admin:admin
+    stats uri /haproxy?stats
+    balance roundrobin
+    option httpchk
+    option forwardfor
+    option http-server-close
+    server node1 {{ NETHERMIND_HOST_ADDRESS }}:8545 check

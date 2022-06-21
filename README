@@ -1,0 +1,14 @@
+# How to launch Gnosis Chain node with Docker Compose, Nethermind, Haproxy, Letsencrypt and Certbot
+
+This project will automate the node creation with ansible
+
+1. Clone this repo:
+
+    ```bash
+    $ git clone https://github.com/smariko/nethermind_gnosis
+    $ cd nethermind_gnosis
+    # Adjust the inventory to your environment
+    $ ansible-playbook -vvv -i inventory/hosts -l [LIMIT] playbook.yml
+    ```
+
+After docker containers are created, the node will sync with the chain (may take a while).

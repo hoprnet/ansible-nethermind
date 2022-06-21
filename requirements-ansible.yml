@@ -1,0 +1,8 @@
+---
+- src: 'https://github.com/geerlingguy/ansible-role-docker'
+  version: '4.1.1'
+  name: 'geerlingguy.docker'
+
+- src: 'https://github.com/weareinteractive/ansible-ufw'
+  version: '2.0.1'
+  name: 'weareinteractive.ufw'

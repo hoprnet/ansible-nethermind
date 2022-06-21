@@ -1,0 +1,45 @@
+version: "3.7"
+services:
+
+  letsencrypt:
+    hostname: letsencrypt
+    container_name: letsencrypt
+    image: certbot/certbot:latest
+    command: [
+      "certonly",
+      "--standalone",
+      "--email", "${LETSENCRYPT_EMAIL}",
+      "-d", "${LETSENCRYPT_DOMAIN_NAME}",
+      "--agree-tos",
+      "--non-interactive",
+      "--staging",
+      "${LETSENCRYPT_LOG_LEVEL}"
+    ]
+    ports:
+      - "80:80"
+    networks:
+      net:
+        ipv4_address: ${LETSENCRYPT_HOST_ADDRESS}
+    volumes:
+      - ./certbot:/etc/letsencrypt/:rw
+
+  certbot-update:
+    image: certbot/certbot:latest
+    container_name: certbot
+    command: [
+      "renew",
+      "--force-renewal",
+      "-vvv"
+    ]
+    volumes:
+      - ./certbot:/etc/letsencrypt
+    networks:
+      net:
+        ipv4_address: ${CERTBOT_HOST_ADDRESS}
+
+networks:
+  net:
+    ipam:
+      driver: default
+      config:
+        - subnet: ${PROJECT_SUBNET}

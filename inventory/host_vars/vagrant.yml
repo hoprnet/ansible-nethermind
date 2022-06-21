@@ -1,0 +1,10 @@
+---
+
+ansible_ssh_host: "{{ host_private_ip }}"
+
+hostname: 'vagrant'
+
+host_private_interface: 'enp0s3'
+host_private_ip: '192.168.56.13'
+host_private_netmask: '255.255.255.0'
+

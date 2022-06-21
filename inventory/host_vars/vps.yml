@@ -1,0 +1,10 @@
+---
+
+ansible_ssh_host: "{{ host_public_ip }}"
+
+hostname: 'ubuntu'
+
+host_public_interface: 'ens3'
+host_public_ip: '51.68.124.79'
+host_public_netmask: '255.255.255.255'
+
